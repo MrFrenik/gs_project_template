@@ -34,6 +34,11 @@
     	#define GS_IMMEDIATE_DRAW_IMPL
     	#include "gs_idraw.h"
 
+    TODO (john): 
+		* Convert flush command to push back commands
+		* On final flush, request update for vertex/index buffer data
+		* Then iterate commands to submit pipelines + state to gfx backend
+
 	================================================================================================================
 */
 
@@ -336,11 +341,11 @@ gs_immediate_draw_t gs_immediate_draw_new()
 	sdesc.name = "gs_immediate_default_fill_shader";
 
 	// Vertex attr layout
-	gs_graphics_vertex_attribute_type gsi_layout[] = {
-		GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT3,
-		GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT2,
-		GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE4
-	};	
+    gs_graphics_vertex_attribute_desc_t gsi_vattrs[] = {
+        (gs_graphics_vertex_attribute_desc_t){.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT3},
+        (gs_graphics_vertex_attribute_desc_t){.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_FLOAT2},
+        (gs_graphics_vertex_attribute_desc_t){.format = GS_GRAPHICS_VERTEX_ATTRIBUTE_BYTE4}
+    };
 
 	// Iterate through attribute list, then create custom pipelines requested.
 	gs_handle(gs_graphics_shader_t) shader = gs_graphics_shader_create(&sdesc);
@@ -370,8 +375,8 @@ gs_immediate_draw_t gs_immediate_draw_new()
 		pdesc.blend.src = GS_GRAPHICS_BLEND_MODE_SRC_ALPHA;
 		pdesc.blend.dst = GS_GRAPHICS_BLEND_MODE_ONE_MINUS_SRC_ALPHA;
 		pdesc.depth.func = d ? GS_GRAPHICS_DEPTH_FUNC_LESS : (gs_graphics_depth_func_type)0x00;
-		pdesc.layout = gsi_layout;
-		pdesc.size = sizeof(gsi_layout);
+		pdesc.layout.attrs = gsi_vattrs;
+		pdesc.layout.size = sizeof(gsi_vattrs);
 
 		gs_handle(gs_graphics_pipeline_t) hndl = gs_graphics_pipeline_create(&pdesc);
 		gs_hash_table_insert(gsi.pipeline_table, attr, hndl);
@@ -1268,9 +1273,9 @@ void gsi_render_pass_submit(gs_immediate_draw_t* gsi, gs_command_buffer_t* cb, g
 	action.color[2] = (float)c.b / 255.f; 
 	action.color[3] = (float)c.a / 255.f;
 	gs_renderpass pass = gs_default_val();
-	gs_vec2 ws = gs_platform_window_sizev(gs_platform_main_window());
+	gs_vec2 fb = gs_platform_framebuffer_sizev(gs_platform_main_window());
 	gs_graphics_begin_render_pass(cb, pass, &action, sizeof(action));
-	gs_graphics_set_viewport(cb, 0, 0, (int32_t)ws.x, (int32_t)ws.y);
+	gs_graphics_set_viewport(cb, 0, 0, (int32_t)fb.x, (int32_t)fb.y);
 	gsi_draw(gsi, cb);
 	gs_graphics_end_render_pass(cb);
 }

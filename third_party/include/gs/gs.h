@@ -633,7 +633,7 @@ typedef bool32_t          bool32;
         }\
     } while (0)
 
-#define gs_int_2_voidp(I) (void*)(uintptr_t)(I)
+#define gs_int2voidp(I) (void*)(uintptr_t)(I)
 
 /*===================================
 // Memory Allocation Utils
@@ -1305,7 +1305,7 @@ gs_force_inline
 size_t gs_hash_bytes(void *p, size_t len, size_t seed)
 {
 #if 0
-  return gs_hash_table_siphash_bytes(p,len,seed);
+  return gs_hash_siphash_bytes(p,len,seed);
 #else
   unsigned char *d = (unsigned char *) p;
 
@@ -1817,43 +1817,40 @@ uint32_t gs_hash_table_get_key_index_func(void** data, void* key, size_t key_len
 
 typedef uint32_t gs_hash_table_iter;
 
+// uint32_t gs_hash_table_get_key_index_func(void** data, void* key, size_t key_len, size_t val_len, size_t stride, size_t klpvl)
+
 gs_force_inline
-uint32_t __gs_find_first_valid_iterator(void* data, size_t key_len, size_t val_len, uint32_t idx)
+uint32_t __gs_find_first_valid_iterator(void* data, size_t key_len, size_t val_len, uint32_t idx, size_t stride, size_t klpvl)
 {
-    size_t it = (size_t)idx;
-    size_t s = key_len == 8 ? 7 : 3;
-    size_t entry_sz = (((key_len + val_len + sizeof(gs_hash_table_entry_state)) + s) & (~s));   // 4-byte aligned stride
-    size_t klpvl = ((key_len + val_len + s) & (~s));    // 4-byte aligned key/val pair
+    uint32_t it = (uint32_t)idx;
+    gs_println("idx: %zu", it);
     for (; it < (uint32_t)gs_dyn_array_capacity(data); ++it)
     {
-        size_t offset = (it * entry_sz);
+        size_t offset = (it * stride);
         gs_hash_table_entry_state state = *(gs_hash_table_entry_state*)((uint8_t*)data + offset + (klpvl));
         if (state == GS_HASH_TABLE_ENTRY_ACTIVE)
         {
             break;
         }
     }
-    return (uint32_t)it;
+    return it;
 }
 
 /* Find first valid iterator idx */
 #define gs_hash_table_iter_new(__HT)\
-    (__gs_find_first_valid_iterator((__HT)->data, sizeof((__HT)->tmp_key), sizeof((__HT)->tmp_val), 0))
+    (__gs_find_first_valid_iterator((__HT)->data, sizeof((__HT)->tmp_key), sizeof((__HT)->tmp_val), 0, (__HT)->stride, (__HT)->klpvl))
 
 #define gs_hash_table_iter_valid(__HT, __IT)\
     ((__IT) < gs_hash_table_capacity((__HT)))
 
 // Have to be able to do this for hash table...
 gs_force_inline
-void __gs_hash_table_iter_advance_func(void** data, size_t key_len, size_t val_len, uint32_t* it)
+void __gs_hash_table_iter_advance_func(void** data, size_t key_len, size_t val_len, uint32_t* it, size_t stride, size_t klpvl)
 {
-    size_t s = key_len == 8 ? 7 : 3;    // NO idea if this is a valid way to handle this.
-    size_t entry_sz = (((key_len + val_len + sizeof(gs_hash_table_entry_state)) + s) & (~s));   // Byte aligned stride
-    size_t klpvl = ((key_len + val_len + s) & (~s));    // Byte aligned key/val pair 
     (*it)++;
     for (; *it < (uint32_t)gs_dyn_array_capacity(*data); ++*it)
     {
-        size_t offset = (size_t)(*it * entry_sz);
+        size_t offset = (size_t)(*it * stride);
         gs_hash_table_entry_state state = *(gs_hash_table_entry_state*)((uint8_t*)*data + offset + (klpvl));
         if (state == GS_HASH_TABLE_ENTRY_ACTIVE)
         {
@@ -1863,10 +1860,10 @@ void __gs_hash_table_iter_advance_func(void** data, size_t key_len, size_t val_l
 }
 
 #define gs_hash_table_find_valid_iter(__HT, __IT)\
-    ((__IT) = __gs_find_first_valid_iterator((void**)&(__HT)->data, sizeof((__HT)->tmp_key), sizeof((__HT)->tmp_val), (__IT)))
+    ((__IT) = __gs_find_first_valid_iterator((void**)&(__HT)->data, sizeof((__HT)->tmp_key), sizeof((__HT)->tmp_val), (__IT), (__HT)->stride, (__HT)->klpvl))
 
 #define gs_hash_table_iter_advance(__HT, __IT)\
-    (__gs_hash_table_iter_advance_func((void**)&(__HT)->data, sizeof((__HT)->tmp_key), sizeof((__HT)->tmp_val), &(__IT)))
+    (__gs_hash_table_iter_advance_func((void**)&(__HT)->data, sizeof((__HT)->tmp_key), sizeof((__HT)->tmp_val), &(__IT), (__HT)->stride, (__HT)->klpvl))
 
 #define gs_hash_table_iter_get(__HT, __IT)\
     gs_hash_table_geti(__HT, __IT)
@@ -2240,7 +2237,7 @@ void gs_command_buffer_free(gs_command_buffer_t* cb)
 ================================================================================*/
 
 #define gs_rad2deg(__R)\
-    (float)((__R * 180.0.f) / GS_PI) 
+    (float)((__R * 180.0f) / GS_PI) 
 
 #define gs_deg2rad(__D)\
     (float)((__D * GS_PI) / 180.0f)
@@ -2679,7 +2676,7 @@ gs_mat4_ctor() {
 }
 
 gs_inline
-gs_mat4 gs_mat4_elem(const float elements[16])
+gs_mat4 gs_mat4_elem(const float* elements)
 {
     gs_mat4 mat = gs_mat4_ctor();
     memcpy(mat.elements, elements, sizeof(f32) * 16);
@@ -3843,6 +3840,66 @@ typedef struct gs_platform_settings_t
     gs_platform_video_settings_t video;
 } gs_platform_settings_t;
 
+typedef enum gs_platform_event_type 
+{
+    GS_PLATFORM_EVENT_MOUSE,
+    GS_PLATFORM_EVENT_KEY,
+    GS_PLATFORM_EVENT_WINDOW
+} gs_platform_event_type;
+
+typedef enum gs_platform_key_action_type
+{
+    GS_PLATFORM_KEY_PRESSED,
+    GS_PLATFORM_KEY_DOWN,
+    GS_PLATFORM_KEY_RELEASED
+} gs_platform_key_action_type;
+
+typedef struct gs_platform_key_event_t
+{
+    int32_t codepoint;
+    gs_platform_keycode key;
+    gs_platform_key_action_type action;
+} gs_platform_key_event_t;
+
+typedef enum gs_platform_mousebutton_action_type
+{
+    GS_PLATFORM_MBUTTON_PRESSED,
+    GS_PLATFORM_MBUTTON_DOWN,
+    GS_PLATFORM_MBUTTON_RELEASED
+} gs_platform_mousebutton_action_type;
+
+typedef struct gs_platform_mouse_event_t 
+{
+    int32_t codepoint;
+    gs_platform_mouse_button_code button;
+    gs_platform_mousebutton_action_type action;
+} gs_platform_mouse_event_t;
+
+typedef enum gs_platform_window_action_type
+{
+    GS_PLATFORM_WINDOW_MOUSE_ENTER,
+    GS_PLATFORM_WINDOW_MOUSE_LEAVE,
+    GS_PLATFORM_WINDOW_RESIZE
+} gs_platform_window_action_type;
+
+typedef struct gs_platform_window_event_t
+{
+    uint32_t hndl;
+    gs_platform_window_action_type action;
+} gs_platform_window_event_t;
+
+// Platform events
+typedef struct gs_platform_event_t
+{
+    gs_platform_event_type type;
+    union {
+        gs_platform_key_event_t key;
+        gs_platform_mouse_event_t mouse;
+        gs_platform_window_event_t window;
+    };
+    uint32_t idx;
+} gs_platform_event_t;
+
 // Necessary function pointer typedefs
 typedef void (* gs_dropped_files_callback_t)(void*, int32_t count, const char** file_paths);
 typedef void (* gs_window_close_callback_t)(void*);
@@ -3865,6 +3922,9 @@ typedef struct gs_platform_i
     // Window data and handles
     gs_slot_array(void*) windows;
 
+    // Events that user can poll
+    gs_dyn_array(gs_platform_event_t) events;
+
     // Cursors
     void* cursors[GS_PLATFORM_CURSOR_COUNT];
 
@@ -3880,6 +3940,7 @@ typedef struct gs_platform_i
 GS_API_DECL gs_platform_i*  gs_platform_create();
 GS_API_DECL void            gs_platform_destroy(gs_platform_i* platform);
 GS_API_DECL gs_result       gs_platform_init(gs_platform_i* platform);      // Initialize global platform layer
+GS_API_DECL gs_result       gs_platform_update(gs_platform_i* platform);    // Update platform layer
 GS_API_DECL gs_result       gs_platform_shutdown(gs_platform_i* platform);  // Shutdown gloabl platform layer
 
 // Platform Util
@@ -3892,7 +3953,7 @@ GS_API_DECL void gs_platform_enable_vsync(int32_t enabled);
 
 // Platform UUID
 GS_API_DECL gs_uuid_t gs_platform_generate_uuid();
-GS_API_DECL void      gs_platform_uuid_to_string(char* temp_buffer, const gs_uuid_t* uuid); // Expects a temp buffer with at leat 32 bytes
+GS_API_DECL void      gs_platform_uuid_to_string(char* temp_buffer, const gs_uuid_t* uuid); // Expects a temp buffer with at least 32 bytes
 GS_API_DECL uint32_t  gs_platform_hash_uuid(const gs_uuid_t* uuid);
 
 // Platform Input
@@ -3904,6 +3965,7 @@ GS_API_DECL bool      gs_platform_was_key_down(gs_platform_keycode code);
 GS_API_DECL bool      gs_platform_key_pressed(gs_platform_keycode code);
 GS_API_DECL bool      gs_platform_key_down(gs_platform_keycode code);
 GS_API_DECL bool      gs_platform_key_released(gs_platform_keycode code);
+GS_API_DECL uint32_t  gs_platform_key_to_codepoint(gs_platform_keycode code);
 GS_API_DECL void      gs_platform_press_mouse_button(gs_platform_mouse_button_code code);
 GS_API_DECL void      gs_platform_release_mouse_button(gs_platform_mouse_button_code code);
 GS_API_DECL bool      gs_platform_was_mouse_down(gs_platform_mouse_button_code code);
@@ -3914,9 +3976,12 @@ GS_API_DECL void      gs_platform_set_mouse_position(uint32_t handle, float x, f
 GS_API_DECL gs_vec2   gs_platform_mouse_deltav();
 GS_API_DECL void      gs_platform_mouse_delta(float* x, float* y);
 GS_API_DECL gs_vec2   gs_platform_mouse_positionv();
-GS_API_DECL void      gs_platform_mouse_position(float* x, float* y);
+GS_API_DECL void      gs_platform_mouse_position(int32_t* x, int32_t* y);
 GS_API_DECL void      gs_platform_mouse_wheel(float* x, float* y);
 GS_API_DECL bool      gs_platform_mouse_moved();
+
+// Platform Events
+GS_API_DECL bool      gs_platform_poll_event(gs_platform_event_t* evt);
 
 // Platform Window
 GS_API_DECL uint32_t gs_platform_create_window(const char* title, uint32_t width, uint32_t height);
@@ -4454,15 +4519,28 @@ typedef struct gs_graphics_raster_state_desc_t
     size_t index_buffer_element_size;             // Element size of index buffer (used for parsing internal data)
 } gs_graphics_raster_state_desc_t;
 
+/* Graphics Vertex Attribute Desc */
+typedef struct gs_graphics_vertex_attribute_desc_t {
+    gs_graphics_vertex_attribute_type format;           // Format for vertex attribute
+    size_t stride;                                      // Total stride of vertex layout (optional, calculated by default)
+    size_t offset;                                      // Offset of this vertex from base pointer of data (optional, calaculated by default)
+    size_t divisor;                                     // Used for instancing. (optional, default = 0x00 for no instancing)
+} gs_graphics_vertex_attribute_desc_t;
+
+/* Graphics Vertex Layout Desc */
+typedef struct gs_graphics_vertex_layout_desc_t {
+    gs_graphics_vertex_attribute_desc_t* attrs;      // Vertex attribute array
+    size_t size;                                    // Size in bytes of vertex attribute array
+} gs_graphics_vertex_layout_desc_t;
+
 /* Graphics Pipeline Desc */
 typedef struct gs_graphics_pipeline_desc_t
 {
-    gs_graphics_blend_state_desc_t blend;      // Blend state desc for pipeline
-    gs_graphics_depth_state_desc_t depth;      // Depth state desc for pipeline
-    gs_graphics_raster_state_desc_t raster;    // Raster state desc for pipeline
-    gs_graphics_stencil_state_desc_t stencil;  // Stencil state desc for pipeline
-    gs_graphics_vertex_attribute_type* layout; // Array of vertex attributes for layout
-    size_t size;                               // Size in bytes of vertex attribute array
+    gs_graphics_blend_state_desc_t blend;       // Blend state desc for pipeline
+    gs_graphics_depth_state_desc_t depth;       // Depth state desc for pipeline
+    gs_graphics_raster_state_desc_t raster;     // Raster state desc for pipeline
+    gs_graphics_stencil_state_desc_t stencil;   // Stencil state desc for pipeline
+    gs_graphics_vertex_layout_desc_t layout; // Vertex layout desc for pipeline
 } gs_graphics_pipeline_desc_t;
 
 /*==========================
@@ -4938,16 +5016,26 @@ void gs_camera_offset_orientation(gs_camera_t* cam, f32 yaw, f32 pitch)
 // GS_UTIL
 =============================*/
 
-#define STB_DEFINE
+#ifndef GS_NO_STB_RECT_PACK
+    #define STB_RECT_PACK_IMPLEMENTATION
+#endif
+
+#ifndef GS_NO_STB_TRUETYPE
+    #define STB_TRUETYPE_IMPLEMENTATION
+#endif
+
+#ifndef GS_NO_STB_DEFINE
+    #define STB_DEFINE
+#endif
+
+#ifndef GS_NO_STB_IMAGE
+    #define STB_IMAGE_IMPLEMENTATION
+    #define STB_IMAGE_WRITE_IMPLEMENTATION
+#endif
+
 #include "external/stb/stb.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "external/stb/stb_image_write.h"
-
-#define STB_TRUETYPE_IMPLEMENTATION
 #include "external/stb/stb_truetype.h"
-
-#define STB_IMAGE_IMPLEMENTATION
 #include "external/stb/stb_image.h"
 
 bool32_t gs_util_load_texture_data_from_file(const char* file_path, int32_t* width, int32_t* height, uint32_t* num_comps, void** data, bool32_t flip_vertically_on_load)
@@ -5200,11 +5288,8 @@ gs_result gs_engine_run()
         platform->time.update   = platform->time.current - platform->time.previous;
         platform->time.previous = platform->time.current;
 
-        // Update platform input from previous frame        
-        gs_platform_update_input(&platform->input);
-
-        // Process input for this frame
-        if (gs_platform_process_input(&platform->input) != GS_RESULT_IN_PROGRESS)
+        // Update platform and process input
+        if (gs_platform_update(platform) != GS_RESULT_IN_PROGRESS)
         {
             return (gs_engine_instance()->shutdown());
         }
@@ -5312,8 +5397,139 @@ void gs_engine_quit()
 
 #endif // __GS_INCLUDED_H__
 
+/*
+    Layout decl
 
+    // Pipeline should have layout desc for vertices?
+    // Or should it have layout for EACH buffer?
+        
+    non-interleaved vertex data
+    have to be able to specific stride/offset for vertex layouts
 
+    What are ways to interleave data?
+
+    layout descriptor? 
+
+    gs_vertex_attribute_type layouts[] = 
+    {
+
+    };
+
+    // Need to codify strides/offsets/divisors
+
+    // This can hold multiple layouts
+    gs_vertex_layout_desc_t layout = 
+    {
+        .layouts = layouts, 
+        .size = sizeof(layouts) 
+    };
+
+    Don't want to have to make user calculate strides, right?
+
+    // If you don't provide manual stride/offset, then it'll calculate it for you based on layout?
+
+    #version 330 core
+    layout (location = 0) in vec2 aPos;
+    layout (location = 1) in vec3 aColor;
+    layout (location = 2) in vec2 aOffset;
+
+    out vec3 fColor;
+
+    void main()
+    {
+        gl_Position = vec4(aPos + aOffset, 0.0, 1.0);
+        fColor = aColor;
+    }
+
+    typedef struct gs_vertex_attribute_layout_desc_t {
+        gs_vertex_attribute_type format; 
+        size_t stride;
+        size_t offset;
+        size_t divisor;
+    } gs_vertex_attribute_layout_desc_t;
+
+    gs_vertex_attribute_layout_desc_t layout[] = {
+        {.format = GS_VERTEX_ATTRIBUTE_FLOAT2},
+        {.format = GS_VERTEX_ATTRIBUTE_FLOAT3},
+        {.format = GS_VERTEX_ATTRIBUTE_FLOAT2, .stride = 2 * sizeof(float), .offset = 0, .divisor = 1}
+    };
+
+    What about non-interleaved data? Almost would need to provide an offset.
+    It's specific to the data itself, so have to provide manual offsets for data in binding data
+
+    gs_graphics_bind_desc_t binds[] = {
+        {.type = GS_GRAPHICS_BIND_VERTEX_BUFFER, .buffer = , .offset = };
+    }
+
+    gs_graphics_bind_desc_t binds[] = {
+        (gs_graphics_bind_desc_t){.type = GS_GRAPHICS_BIND_VERTEX_BUFFER, .buffer = vbo, .offset = ...},
+        (gs_graphics_bind_desc_t){.type = GS_GRAPHICS_BIND_VERTEX_BUFFER, .buffer = vbo, .offset = ...},
+    };
+
+    .layout = {
+        .attributes = &(){
+            {.format = GS_VERTEX_ATTRIBUTE_FLOAT2},
+            {.format = GS_VERTEX_ATTRIBUTE_FLOAT2},
+            {.format = GS_VERTEX_ATTRIBUTE_FLOAT4, .stride = 64, .offset =, .divisor = }
+        } 
+    };
+
+    sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+        .shader = shd,
+        .layout = {
+            .attrs = {
+                [0].format=SG_VERTEXFORMAT_FLOAT3,
+                [1].format=SG_VERTEXFORMAT_FLOAT4
+            }
+        }
+    });
+
+    .layout = {
+        .attrs = attrs, 
+        .attr_size = sizeof(attrs), 
+        .strides = strides, 
+        .stride_size = sizeof(strides),
+
+    }
+
+    sg_pipeline pip = sg_make_pipeline(&(sg_pipeline_desc){
+        .layout = {
+            .buffers = {
+                [0] = { .stride = 28 },
+                [1] = { .stride = 12, .step_func=SG_VERTEXSTEP_PER_INSTANCE }
+            },
+            .attrs = {
+                [0] = { .offset = 0,  .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index=0 },
+                [1] = { .offset = 12, .format=SG_VERTEXFORMAT_FLOAT4, .buffer_index=0 },
+                [2] = { .offset = 0,  .format=SG_VERTEXFORMAT_FLOAT3, .buffer_index=1 }
+            }
+        },
+        .shader = shd,
+        .index_type = SG_INDEXTYPE_UINT16,
+        .depth_stencil = {
+            .depth_compare_func = SG_COMPAREFUNC_LESS_EQUAL,
+            .depth_write_enabled = true
+        },
+        .rasterizer.cull_mode = SG_CULLMODE_BACK
+    });
+
+    float quadVertices[] = {
+        // positions     // colors
+        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+         0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+        -0.05f, -0.05f,  0.0f, 0.0f, 1.0f,
+
+        -0.05f,  0.05f,  1.0f, 0.0f, 0.0f,
+         0.05f, -0.05f,  0.0f, 1.0f, 0.0f,
+         0.05f,  0.05f,  0.0f, 1.0f, 1.0f
+    };
+
+    // also set instance data
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO); // this attribute comes from a different vertex buffer
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glVertexAttribDivisor(2, 1); // tell OpenGL this is an instanced vertex attribute.
 
 /*
     gltf loading
