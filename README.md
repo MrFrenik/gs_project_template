@@ -1,6 +1,6 @@
 # Gunslinger Project Template
 
-This is a minimum and premade configuration that you need in order to get started with gunslinger. It provides all the necessary dependencies and the make/bat files for compiling it on Windows, Mac and Linux.
+This is a minimum and premade configuration that you need in order to get started with gunslinger. It provides all the necessary dependencies and the bash/batch scripts for compiling it on Windows, Mac and Linux.
 
 You can also check the main **Gunslinger** repository here, where you'll find a documentation for you to get started and learn how to use it:
 [Gunlinger repository](https://github.com/MrFrenik/gunslinger)
