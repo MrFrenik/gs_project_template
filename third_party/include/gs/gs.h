@@ -715,6 +715,9 @@ typedef enum gs_result
 #define gs_handle_create(__TYPE, __ID)\
     gs_handle_create_##__TYPE(__ID)
 
+#define gs_handle_is_valid(HNDL)\
+    ((HNDL.id) != UINT32_MAX)
+
 /*===================================
 // Color
 ===================================*/
@@ -4093,7 +4096,7 @@ GS_API_DECL uint32_t gs_platform_create_window(const char* title, uint32_t width
 GS_API_DECL uint32_t gs_platform_main_window();
 
 // Platform File IO
-GS_API_DECL char*      gs_platform_read_file_contents(const char* file_path, const char* mode, int32_t* sz);
+GS_API_DECL char*      gs_platform_read_file_contents(const char* file_path, const char* mode, size_t* sz);
 GS_API_DECL gs_result  gs_platform_write_file_contents(const char* file_path, const char* mode, void* data, size_t data_size);
 GS_API_DECL bool       gs_platform_file_exists(const char* file_path);
 GS_API_DECL int32_t    gs_platform_file_size_in_bytes(const char* file_path);
@@ -4898,7 +4901,7 @@ typedef struct gs_asset_texture_t
     gs_graphics_texture_desc_t desc;
 } gs_asset_texture_t;
 
-GS_API_DECL void gs_asset_texture_load_from_file(const char* path, void* out, gs_graphics_texture_desc_t* desc, bool32_t flip_on_load, bool32_t keep_data);
+GS_API_DECL bool gs_asset_texture_load_from_file(const char* path, void* out, gs_graphics_texture_desc_t* desc, bool32_t flip_on_load, bool32_t keep_data);
 
 // Font
 typedef struct gs_baked_char_t
@@ -4914,7 +4917,7 @@ typedef struct gs_asset_font_t
     gs_asset_texture_t texture;
 } gs_asset_font_t; 
 
-GS_API_DECL void gs_asset_font_load_from_file(const char* path, void* out, uint32_t point_size);
+GS_API_DECL bool gs_asset_font_load_from_file(const char* path, void* out, uint32_t point_size);
 
 // Audio
 typedef struct gs_asset_audio_t
@@ -4922,7 +4925,7 @@ typedef struct gs_asset_audio_t
     gs_handle(gs_audio_source_t) hndl;
 } gs_asset_audio_t;
 
-GS_API_DECL void gs_asset_audio_load_from_file(const char* path, void* out);
+GS_API_DECL bool gs_asset_audio_load_from_file(const char* path, void* out);
 
 // Mesh
 gs_enum_decl(gs_asset_mesh_attribute_type,
@@ -4969,7 +4972,7 @@ typedef struct gs_asset_mesh_raw_data_t
     void** indices;
 } gs_asset_mesh_raw_data_t;
 
-GS_API_DECL void gs_asset_mesh_load_from_file(const char* path, void* out, gs_asset_mesh_decl_t* decl, void* data_out, size_t data_size);
+GS_API_DECL bool gs_asset_mesh_load_from_file(const char* path, void* out, gs_asset_mesh_decl_t* decl, void* data_out, size_t data_size);
 
 GS_API_DECL void gs_util_load_gltf_data_from_file(const char* path, gs_asset_mesh_decl_t* decl, gs_asset_mesh_raw_data_t** out, uint32_t* mesh_count);
 
@@ -5181,16 +5184,8 @@ gs_byte_buffer_write_to_file
     const char* output_path 
 )
 {
-    FILE* fp = fopen(output_path, "wb");
-    if (fp) 
-    {
-        int32_t ret = (int32_t)fwrite(buffer->data, sizeof(u8), buffer->size, fp);
-        if (ret == buffer->size)
-        {
-            return GS_RESULT_SUCCESS;
-        }
-    }
-    return GS_RESULT_FAILURE;
+
+    return gs_platform_write_file_contents(output_path, "wb", buffer->data, buffer->size);
 }
 
 gs_result 
@@ -5200,11 +5195,18 @@ gs_byte_buffer_read_from_file
     const char* file_path 
 )
 {
-    buffer->data = (u8*)gs_read_file_contents_into_string_null_term(file_path, "rb", (usize*)&buffer->size);
+    if (!buffer) return GS_RESULT_FAILURE;
+
+    if (buffer->data) {
+        gs_byte_buffer_free(buffer);
+    }
+
+    buffer->data = (u8*)gs_platform_read_file_contents(file_path, "rb", (size_t*)&buffer->size);
     if (!buffer->data) {
         gs_assert(false);   
         return GS_RESULT_FAILURE;
     }
+
     buffer->position = 0;
     buffer->capacity = buffer->size;
     return GS_RESULT_SUCCESS;
@@ -5459,7 +5461,7 @@ bool32_t gs_util_load_texture_data_from_file(const char* file_path, int32_t* wid
 // GS_ASSET_TYPES
 ==========================*/
 
-void gs_asset_texture_load_from_file(const char* path, void* out, gs_graphics_texture_desc_t* desc, bool32_t flip_on_load, bool32_t keep_data)
+bool gs_asset_texture_load_from_file(const char* path, void* out, gs_graphics_texture_desc_t* desc, bool32_t flip_on_load, bool32_t keep_data)
 {
     gs_asset_texture_t* t = (gs_asset_texture_t*)out; 
 
@@ -5481,7 +5483,7 @@ void gs_asset_texture_load_from_file(const char* path, void* out, gs_graphics_te
         (int32_t*)&t->desc.height, (uint32_t*)&num_comps, (void**)&t->desc.data, flip_on_load);
 
     if (!loaded) {
-        return;
+        return false;
     }
 
     t->hndl = gs_graphics_texture_create(&t->desc);
@@ -5490,9 +5492,11 @@ void gs_asset_texture_load_from_file(const char* path, void* out, gs_graphics_te
         gs_free(t->desc.data);
         t->desc.data = NULL;
     }
+
+    return true;
 }
 
-void gs_asset_font_load_from_file(const char* path, void* out, uint32_t point_size)
+bool gs_asset_font_load_from_file(const char* path, void* out, uint32_t point_size)
 { 
     gs_asset_font_t* f = (gs_asset_font_t*)out;
 
@@ -5541,23 +5545,27 @@ void gs_asset_font_load_from_file(const char* path, void* out, uint32_t point_si
     f->texture.desc = desc;
     f->texture.desc.data = NULL;
 
+    bool success = false;
     if (v == 0) {
         gs_println("Font Failed to Load: %s, %d", path, v);
     }
     else {
         gs_println("Font Successfully Loaded: %s, %d", path, v);
+        success = true;
     }
 
     gs_free(ttf);
     gs_free(alpha_bitmap);
     gs_free(flipmap);
+    return success;
 }
 
 // Audio
-void gs_asset_audio_load_from_file(const char* path, void* out)
+bool gs_asset_audio_load_from_file(const char* path, void* out)
 {
     gs_asset_audio_t* a = (gs_asset_audio_t*)out;
     a->hndl = gs_audio_load_from_file(path);
+    return gs_handle_is_valid(a->hndl);
 }
 
 // Mesh
@@ -5850,10 +5858,15 @@ void gs_util_load_gltf_data_from_file(const char* path, gs_asset_mesh_decl_t* de
     gs_byte_buffer_free(&i_data);
 }
 
-void gs_asset_mesh_load_from_file(const char* path, void* out, gs_asset_mesh_decl_t* decl, void* data_out, size_t data_size)
+bool gs_asset_mesh_load_from_file(const char* path, void* out, gs_asset_mesh_decl_t* decl, void* data_out, size_t data_size)
 {
     // Cast mesh data to use
     gs_asset_mesh_t* mesh = (gs_asset_mesh_t*)out;
+
+    if (!gs_platform_file_exists(path)) {
+        gs_println("Warning:MeshLoadFromFile:File does not exist: %s", path);
+        return false;
+    }
 
     // Mesh data to fill out
     uint32_t mesh_count = 0;
@@ -5871,14 +5884,14 @@ void gs_asset_mesh_load_from_file(const char* path, void* out, gs_asset_mesh_dec
     else 
     {
         gs_println("Warning:MeshLoadFromFile:File extension not supported: %s, file: %s", file_ext, path);
-        return;
+        return false;
     }
 
     // For now, handle meshes with only single mesh count
     if (mesh_count != 1) {
         // Error
         // Free all the memory
-        return;
+        return false;
     }
 
     // Process all mesh data, add meshes
@@ -5914,6 +5927,7 @@ void gs_asset_mesh_load_from_file(const char* path, void* out, gs_asset_mesh_dec
     }
 
     // Free all mesh data
+    return true;
 }
 
 /*=============================

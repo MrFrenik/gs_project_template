@@ -203,7 +203,7 @@ void gs_platform_poll_all_events()
                             platform->input.mouse.delta = evt.mouse.move;
                             platform->input.mouse.position = gs_vec2_add(evt.mouse.move, platform->input.mouse.position);
                         } else {
-                            platform->input.mouse.delta = gs_vec2_sub(evt.mouse.move, platform->input.mouse.delta);
+                            platform->input.mouse.delta = gs_vec2_sub(evt.mouse.move, platform->input.mouse.position);
                             platform->input.mouse.position = evt.mouse.move;
                         }
                     } break;
@@ -448,27 +448,24 @@ void gs_platform_release_key(gs_platform_keycode code)
 }
 
 // Platform File IO
-char* gs_platform_read_file_contents(const char* file_path, const char* mode, int32_t* sz)
+char* gs_platform_read_file_contents(const char* file_path, const char* mode, size_t* sz)
 {
      char* buffer = 0;
     FILE* fp = fopen(file_path, mode);
-    usize _sz = 0;
+    size_t read_sz = 0;
     if (fp)
     {
-        _sz = gs_platform_file_size_in_bytes(file_path);
-        // fseek(fp, 0, SEEK_END);
-        // _sz = ftell(fp);
-        // fseek(fp, 0, SEEK_SET);
-        buffer = (char*)gs_malloc(_sz);
-        if (buffer)
-        {
-            fread(buffer, 1, _sz, fp);
+        read_sz = gs_platform_file_size_in_bytes(file_path);
+        buffer = (char*)gs_malloc(read_sz + 1);
+        if (buffer) {
+            fread(buffer, 1, read_sz, fp);
         }
-        fclose(fp);
-        // buffer[_sz] = '\0';
+        buffer[read_sz] = '\0';
     }
-    if (sz)
-        *sz = _sz;
+    if (sz) *sz = read_sz;
+
+    fclose(fp);
+
     return buffer;
 }
 
@@ -480,9 +477,11 @@ gs_result gs_platform_write_file_contents(const char* file_path, const char* mod
         size_t ret = fwrite(data, sizeof(uint8_t), sz, fp);
         if (ret == sz)
         {
+            fclose(fp);
             return GS_RESULT_SUCCESS;
         }
     }
+    fclose(fp);
     return GS_RESULT_FAILURE;
 }
 
@@ -1700,14 +1699,40 @@ gs_platform_keycode gs_platform_codepoint_to_key(uint32_t code)
 
 EM_BOOL gs_ems_size_changed_cb(int32_t type, const EmscriptenUiEvent* evt, void* user_data)
 {
+    gs_println("size changed");
     gs_platform_t* platform = gs_engine_subsystem(platform);
     gs_ems_t* ems = (gs_ems_t*)platform->user_data;
     (void)type;
     (void)evt;
     (void)user_data;
+    // gs_println("was: <%.2f, %.2f>", (float)ems->canvas_width, (float)ems->canvas_height);
     emscripten_get_element_css_size(ems->canvas_name, &ems->canvas_width, &ems->canvas_height);
     emscripten_set_canvas_element_size(ems->canvas_name, ems->canvas_width, ems->canvas_height);
+    // gs_println("is: <%.2f, %.2f>", (float)ems->canvas_width, (float)ems->canvas_height);
     return true;
+}
+
+EM_BOOL gs_ems_fullscreenchange_cb(int32_t type, const EmscriptenFullscreenChangeEvent* evt, void* user_data)
+{
+    (void)user_data;
+    (void)type;
+    gs_ems_t* ems = GS_EMS_DATA();
+    // emscripten_get_element_css_size(ems->canvas_name, &ems->canvas_width, &ems->canvas_height);
+    if (evt->isFullscreen) {
+        EmscriptenFullscreenStrategy strategy;
+        strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+        strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+        strategy.canvasResizedCallback = gs_ems_size_changed_cb;
+        emscripten_enter_soft_fullscreen(ems->canvas_name, &strategy);
+        // gs_println("fullscreen!");
+        // emscripten_enter_soft_fullscreen(ems->canvas_name, NULL);
+        // ems->canvas_width = (float)evt->screenWidth;
+        // ems->canvas_height = (float)evt->screenHeight;
+        // emscripten_set_canvas_element_size(ems->canvas_name, ems->canvas_width, ems->canvas_height);
+    } else {
+        emscripten_exit_fullscreen();
+        emscripten_set_canvas_element_size(ems->canvas_name, 800, 600);
+    }
 }
 
 EM_BOOL gs_ems_key_cb(int32_t type, const EmscriptenKeyboardEvent* evt, void* user_data)
@@ -1869,7 +1894,8 @@ gs_platform_init(gs_platform_t* platform)
     emscripten_get_element_css_size(ems->canvas_name, &ems->canvas_width, &ems->canvas_height);
 
     // Set up callbacks
-    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, false, gs_ems_size_changed_cb);
+    emscripten_set_fullscreenchange_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, true, gs_ems_fullscreenchange_cb);
+    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, true, gs_ems_size_changed_cb);
     emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, true, gs_ems_key_cb);
     emscripten_set_keypress_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, true, gs_ems_key_cb);
     emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, true, gs_ems_key_cb);
