@@ -1,0 +1,129 @@
+#!/usr/bin/env python
+import os
+import sys
+
+# Try to detect the host platform automatically.
+# This is used if no `platform` argument is passed
+if sys.platform.startswith("linux"):
+    host_platform = "linux"
+elif sys.platform == "darwin":
+    host_platform = "osx"
+elif sys.platform == "win32" or sys.platform == "msys":
+    host_platform = "windows"
+else:
+    raise ValueError(
+        "Could not detect platform automatically, please specify with "
+        "platform=<platform>"
+    )
+
+env = Environment(ENV=os.environ)
+
+is64 = sys.maxsize > 2 ** 32
+if (env["TARGET_ARCH"] == "amd64"
+    or env["TARGET_ARCH"] == "emt64"
+    or env["TARGET_ARCH"] == "x86_64"
+    or env["TARGET_ARCH"] == "arm64-v8a"):
+    is64 = True
+
+opts = Variables([], ARGUMENTS)
+
+opts.Add(
+    EnumVariable(
+        "platform",
+        "Target platform",
+        host_platform,
+        allowed_values=("linux", "osx", "windows"),
+        ignorecase=2,
+    )
+)
+
+opts.Add(
+    EnumVariable(
+        "target",
+        "Compilation target",
+        "release",
+        allowed_values=("debug", "release"),
+        ignorecase=2,
+    )
+)
+opts.Add(
+    PathVariable("target_path", "The path where the app will be installed", "../../bin/")
+)
+
+opts.Add(
+    PathVariable("source_path", "The path where the source files lay", "../../source/")
+)
+
+opts.Add(
+    PathVariable("target_name", "The name of the app", "App", PathVariable.PathAccept)
+)
+
+opts.Add(
+    EnumVariable(
+        "OpenGL",
+        "If using OpenGL as backend",
+        "false",
+        allowed_values=("false", "true"),
+        ignorecase=2,
+    )
+)
+
+# Create bin folder if it does not exist, it will throw an error
+# if any of the paths above is not an actual path. Since the project
+# template does not actually have the bin folder, it won't work if you use
+# the default unless you create it manually.
+#
+# feel free to remove this if you don't want the bin folder
+os.system("mkdir -p ../../bin/")
+
+# update options
+opts.Update(env)
+
+if env["platform"] == "linux":
+    if env["target"] == "debug":
+        env.Append(CCFLAGS=["-fPIC", "-g3", "-Og", "-std=gnu99"])
+    else:
+        env.Append(CCFLAGS=["-fPIC", "-O3", "-std=gnu99"])
+        env.Append(LINKFLAGS=["-s"])
+
+    env.Append(LINKFLAGS=["-ldl", "-lX11", "-lXi", "-lm", "-pthread"])
+    if env["OpenGL"] == "true":
+        env.Append(CCFLAGS=["-lGL"])
+
+elif env["platform"] == "osx":
+    if env["target"] == "debug":
+        env.Append(CCFLAGS=["-g", "-O2", "-arch", "x86_64", "-std=gnu99", "-objective-c"])
+    else:
+        env.Append(CCFLAGS=["-g", "-O3", "-arch", "x86_64", "-std=gnu99", "-objective-c"])
+
+    env.Append(LINKFLAGS=["-arch", "x86_64", "-framework", "CoreFoundation", "-framework",
+                          "CoreVide", "-framework", "IOKit", "-framework", "Cocoa", "-framework", "Carbon"])
+    if env["OpenGL"] == "true":
+        env.Append(CCFLAGS=["-framework", "OpenGL"])
+
+elif env["platform"] == "windows":
+    env.Append(CPPDEFINES=["WIN32", "_WIN32", "_WINDOWS", "_CRT_SECURE_NO_WARNINGS"])
+    env.Append(CCFLAGS=["-W3", "-GR"])
+    if env["target"] == "debug":
+        env.Append(CPPDEFINES=["_DEBUG"])
+        env.Append(CCFLAGS=["-EHsc", "-MDd", "-ZI"])
+        env.Append(LINKFLAGS=["-DEBUG"])
+    else:
+        env.Append(CPPDEFINES=["NDEBUG"])
+        env.Append(CCFLAGS=["-O2", "-MD"])
+
+    env.Append("-lkernel32", "-luser32", "-lshell32", "-lgdi32", "-lAdvapi32")
+    if env["OpenGL"] == "true":
+        env.Append(CCFLAGS=["opengl32.lib"])
+
+# Source Files
+sources = Glob(f"{env['source_path']}/*.c")
+sources += Glob(f"{env['source_path']}/*/*.c")
+
+app = env.Program(
+    target=f"{env['target_path']}{env['platform']}/{env['target_name']}", source=sources
+)
+Default(app)
+
+# Generates help for the -h scons option.
+Help(opts.GenerateHelpText(env))
