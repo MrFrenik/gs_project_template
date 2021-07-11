@@ -1,0 +1,63 @@
+{
+	"folders":
+	[
+		{
+			"path": "./../../../gs_project_template"
+		}
+	],
+	"build_systems":
+    [
+        {
+            "name": "GS: Build Debug (GCC/MINGW)",
+            "osx": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/osx/gcc_dbg.sh"],
+            	"shell": true
+            },
+            "linux": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/linux/gcc_dbg.sh"],
+            	"shell": true
+            },
+            "windows": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/win/mingw_dbg.sh"],
+            	"shell": true
+            }
+        },
+        {
+            "name": "GS: Build Release (GCC/MINGW)",
+            "osx": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/osx/gcc_rel.sh"],
+            	"shell": true
+            },
+            "linux": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/linux/gcc_rel.sh"],
+            	"shell": true
+            },
+            "windows": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/win/mingw_rel.sh"],
+            	"shell": true
+            }
+        },
+        {
+            "name": "GS: Build Rel-Debug (GCC/MINGW)",
+            "osx": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/osx/gcc_rdbg.sh"],
+            	"shell": true
+            },
+            "linux": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/linux/gcc_rdbg.sh"],
+            	"shell": true
+            },
+            "windows": {
+            	"cmd": ["echo Building... && cd $folder && bash ./proc/win/mingw_rdbg.sh"],
+            	"shell": true
+            }
+        },
+        {
+        	"name": "GS: Run",
+        	"osx": {
+            	"cmd": ["cd $folder && ./bin/App"],
+            	"shell": true
+        	}
+        }
+    ]
+}
