@@ -55,7 +55,15 @@ opts.Add(
 )
 
 opts.Add(
+    PathVariable("include_path",  "Where your includes are", "../../third_party/include")
+)
+
+opts.Add(
     PathVariable("target_name", "The name of the app", "App", PathVariable.PathAccept)
+)
+
+opts.Add(
+    EnumVariable("bits", "Target platform bits", "64" if is64 else "32", ("32", "64"))
 )
 
 opts.Add(
@@ -78,6 +86,17 @@ os.system("mkdir -p ../../bin/")
 
 # update options
 opts.Update(env)
+
+
+if host_platform == "windows":
+    env.Append(ENV=os.environ)
+    if env["bits"] == "64":
+        env = Environment(TARGET_ARCH="amd64")
+    elif env["bits"] == "32":
+        env = Environment(TARGET_ARCH="x86")
+    opts.Update(env)
+
+env.Append(CPPPATH=env['include_path'])
 
 if env["platform"] == "linux":
     if env["target"] == "debug":
@@ -103,18 +122,23 @@ elif env["platform"] == "osx":
 
 elif env["platform"] == "windows":
     env.Append(CPPDEFINES=["WIN32", "_WIN32", "_WINDOWS", "_CRT_SECURE_NO_WARNINGS"])
-    env.Append(CCFLAGS=["-W3", "-GR"])
     if env["target"] == "debug":
         env.Append(CPPDEFINES=["_DEBUG"])
-        env.Append(CCFLAGS=["-EHsc", "-MDd", "-ZI"])
+        env.Append(CCFLAGS=["-EHsc", "-MDd", "-ZI", "-std=gnu99"])
         env.Append(LINKFLAGS=["-DEBUG"])
     else:
         env.Append(CPPDEFINES=["NDEBUG"])
-        env.Append(CCFLAGS=["-O2", "-MD"])
+        env.Append(CCFLAGS=["-O2", "-MD", "-std=gnu99"])
 
-    env.Append("-lkernel32", "-luser32", "-lshell32", "-lgdi32", "-lAdvapi32")
-    if env["OpenGL"] == "true":
-        env.Append(CCFLAGS=["opengl32.lib"])
+    if env["bits"] == "64":
+        env.Append(LINKFLAGS=["-lkernel32", "-luser32", "-lshell32", "-lgdi32", "-lAdvapi32"])
+        if env["OpenGL"] == "true":
+            env.Append(CCFLAGS=["-lopengl32"])
+    elif env["bits"] == "32":
+        env.Append(LINKFLAGS=["kernel32.lib", "user32.lib", "shell32.lib", "vcruntime.lib", "msvcrt.lib", "gdi32.lib", "Advapi32.lib", "winmm.lib"])
+        if env["OpenGL"] == "true":
+            env.Append(CCFLAGS=["opengl32.lib"])
+
 
 # Source Files
 sources = Glob(f"{env['source_path']}/*.c")
