@@ -81,3 +81,13 @@ bash ./proc/osx/gcc.sh
 ```bash
 ./bin/App
 ```
+
+### HTML5
+## Emscripten: 
+- Open terminal
+- cd to `root dir` where you downloaded project template
+- To compile the project, run:
+```bash
+bash ./proc/osx/emcc.sh
+```
+- This will generate the appropriate .html, .js, and .wsm files to load in a browser. 
