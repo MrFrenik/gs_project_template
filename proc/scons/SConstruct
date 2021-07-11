@@ -26,6 +26,7 @@ if (env["TARGET_ARCH"] == "amd64"
     is64 = True
 
 opts = Variables([], ARGUMENTS)
+
 opts.Add(
     EnumVariable(
         "platform",
@@ -35,6 +36,7 @@ opts.Add(
         ignorecase=2,
     )
 )
+
 opts.Add(
     EnumVariable(
         "target",
@@ -47,12 +49,15 @@ opts.Add(
 opts.Add(
     PathVariable("target_path", "The path where the app will be installed", "../../bin/")
 )
+
 opts.Add(
     PathVariable("source_path", "The path where the source files lay", "../../source/")
 )
+
 opts.Add(
     PathVariable("target_name", "The name of the app", "App", PathVariable.PathAccept)
 )
+
 opts.Add(
     EnumVariable(
         "OpenGL",
@@ -63,13 +68,18 @@ opts.Add(
     )
 )
 
+# Create bin folder if it does not exist, it will throw an error
+# if any of the paths above is not an actual path. Since the project
+# template does not actually have the bin folder, it won't work if you use
+# the default unless you create it manually.
+#
+# feel free to remove this if you don't want the bin folder
 os.system("mkdir -p ../../bin/")
+
+# update options
 opts.Update(env)
 
-
 if env["platform"] == "linux":
-    env["target_name"] = env["target_name"]
-
     if env["target"] == "debug":
         env.Append(CCFLAGS=["-fPIC", "-g3", "-Og", "-std=gnu99"])
     else:
@@ -80,10 +90,7 @@ if env["platform"] == "linux":
     if env["OpenGL"] == "true":
         env.Append(CCFLAGS=["-lGL"])
 
-# Check our platform specifics
 elif env["platform"] == "osx":
-    env["target_name"] = env["target_name"]
-
     if env["target"] == "debug":
         env.Append(CCFLAGS=["-g", "-O2", "-arch", "x86_64", "-std=gnu99", "-objective-c"])
     else:
