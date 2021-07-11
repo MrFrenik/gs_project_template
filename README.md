@@ -10,12 +10,12 @@ And you can also find a complete list of examples for you to learn from and test
 
 ## Cloning instructions: 
 - Use the following command to clone the repo and init the gunslinger submodule
-```
+```bash
 git clone --recursive https://github.com/MrFrenik/gs_project_template
 ```
 
 ## Updating GS instructions (updates gunslinger submodule and rebases to main branch): 
-```
+```bash
 git submodule update --remote --rebase --recursive
 ```
 
@@ -43,7 +43,20 @@ bash ./proc/win/mingw.sh
 ```bash
 ./bin/App.exe
 ```
+
 ### Linux
+
+## Before Compiling:
+- Make sure the following development libraries are installed: 
+```bash
+sudo apt install git gcc mesa-common-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev
+```
+- For Mesa and OpenGL, need to export the following: 
+```bash
+export MESA_GL_VERSION_OVERRIDE=3.3
+```
+- Credit to https://github.com/Samdal
+
 ## GCC:
 - Open terminal
 - cd to `root dir` where you downloaded project template
@@ -55,6 +68,7 @@ bash ./proc/linux/gcc.sh
 ```bash
 ./bin/App
 ```
+
 ### OSX
 ## GCC: 
 - Open terminal
