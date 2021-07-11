@@ -8,6 +8,17 @@ You can also check the main **Gunslinger** repository here, where you'll find a 
 And you can also find a complete list of examples for you to learn from and test on your machine here: 
 [Gunslinger examples](https://github.com/MrFrenik/gs_examples)
 
+## Cloning instructions: 
+- Use the following command to clone the repo and init the gunslinger submodule
+```
+git clone --recursive https://github.com/MrFrenik/gs_project_template
+```
+
+## Updating GS instructions (updates gunslinger submodule and rebases to main branch): 
+```
+git submodule update --remote --rebase --recursive
+```
+
 ## Build Instructions:
 
 ### Windows
