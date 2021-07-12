@@ -143,6 +143,8 @@ elif env["platform"] == "windows":
 # Source Files
 sources = Glob(f"{env['source_path']}/*.c")
 sources += Glob(f"{env['source_path']}/*/*.c")
+sources += Glob(f"{env['source_path']}/*.cpp")
+sources += Glob(f"{env['source_path']}/*/*.cpp")
 
 app = env.Program(
     target=f"{env['target_path']}{env['platform']}/{env['target_name']}", source=sources
