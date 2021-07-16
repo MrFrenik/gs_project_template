@@ -124,20 +124,20 @@ elif env["platform"] == "windows":
     env.Append(CPPDEFINES=["WIN32", "_WIN32", "_WINDOWS", "_CRT_SECURE_NO_WARNINGS"])
     if env["target"] == "debug":
         env.Append(CPPDEFINES=["_DEBUG"])
-        env.Append(CCFLAGS=["-EHsc", "-MDd", "-ZI", "-std=gnu99"])
+        env.Append(CCFLAGS=["-MD", "-std=gnu99"])
         env.Append(LINKFLAGS=["-DEBUG"])
     else:
         env.Append(CPPDEFINES=["NDEBUG"])
         env.Append(CCFLAGS=["-O2", "-MD", "-std=gnu99"])
 
-    if env["bits"] == "64":
-        env.Append(LINKFLAGS=["-lkernel32", "-luser32", "-lshell32", "-lgdi32", "-lAdvapi32"])
-        if env["OpenGL"] == "true":
-            env.Append(CCFLAGS=["-lopengl32"])
-    elif env["bits"] == "32":
+    if env["bits"] == "32" and host_platform == "windows":
         env.Append(LINKFLAGS=["kernel32.lib", "user32.lib", "shell32.lib", "vcruntime.lib", "msvcrt.lib", "gdi32.lib", "Advapi32.lib", "winmm.lib"])
         if env["OpenGL"] == "true":
-            env.Append(CCFLAGS=["opengl32.lib"])
+            env.Append(LINKFLAGS=["opengl32.lib"])
+    else:
+        env.Append(LINKFLAGS=["-mwindows", "-lkernel32", "-luser32", "-lshell32", "-lgdi32", "-lAdvapi32", "-lwinmm"])
+        if env["OpenGL"] == "true":
+            env.Append(LINKFLAGS=["-lopengl32"])
 
 
 # Source Files
