@@ -4,13 +4,18 @@
 #define GS_IMMEDIATE_DRAW_IMPL
 #include <gs/util/gs_idraw.h>
 
+#define GS_GUI_IMPL
+#include <gs/util/gs_gui.h>
+
 gs_command_buffer_t cb    = {0};
 gs_immediate_draw_t gsi   = {0};
+gs_gui_context_t gui      = {0};
 
 void init() 
 {
 	cb = gs_command_buffer_new();
-	gsi = gs_immediate_draw_new();
+	gsi = gs_immediate_draw_new(gs_platform_main_window());
+    gs_gui_init(&gui, gs_platform_main_window());
 }
 
 void update()
@@ -28,6 +33,9 @@ void update()
 	gsi_camera2D(&gsi);
 	gsi_text(&gsi, ws.x * 0.5f - 70.f, ws.y * 0.5f, "Hello, Gunslinger.", NULL, false, 255, 255, 255, 255);
 	gsi_render_pass_submit(&gsi, &cb, gs_color(10, 10, 10, 255));
+
+    // Render gui
+    gs_gui_render(&gui, &cb);
 
 	// Submit command buffer for GPU
 	gs_graphics_submit_command_buffer(&cb);
