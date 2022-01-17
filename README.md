@@ -2,7 +2,7 @@
 
 This is a minimum and premade configuration that you need in order to get started with gunslinger. It provides all the necessary dependencies and the bash/batch scripts for compiling it on Windows, Mac and Linux.
 
-You can also check the main **Gunslinger** repository here, where you'll find a documentation for you to get started and learn how to use it:
+You can also check the main **Gunslinger** repository here, where you'll find documentation on how to get started:
 [Gunlinger repository](https://github.com/MrFrenik/gunslinger)
  
 And you can also find a complete list of examples for you to learn from and test on your machine here: 
