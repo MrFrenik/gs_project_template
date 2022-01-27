@@ -21,7 +21,7 @@ void init()
 void update()
 {
 	if (gs_platform_key_pressed(GS_KEYCODE_ESC)) {
-		gs_engine_quit();
+		gs_quit();
 	}
 
 	gs_vec2 ws = gs_platform_window_sizev(gs_platform_main_window());
