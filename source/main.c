@@ -13,7 +13,7 @@ typedef struct app_t
     gs_immediate_draw_t gsi;
     gs_gui_context_t gui;
 } app_t; 
-
+asdf
 void app_init() 
 {
     app_t* app = gs_user_data(app_t);
