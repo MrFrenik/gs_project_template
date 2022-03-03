@@ -44,7 +44,7 @@ void app_update()
 	gsi_render_pass_submit(gsi, cb, gs_color(10, 10, 10, 255));
 
     // Render gui
-    gs_gui_begin(gui); 
+    gs_gui_begin(gui, fbs); 
     if (gs_gui_window_begin(gui, "App", gs_gui_rect(100, 100, 200, 200))) {
         gs_gui_layout_row(gui, 1, (int[]){-1}, 0);
         gs_gui_text(gui, "Hello, Gunslinger.");
