@@ -45,10 +45,10 @@ void app_update()
 
     // Render gui
     gs_gui_begin(gui); 
-    if (gs_gui_begin_window(gui, "App", gs_gui_rect(100, 100, 200, 200))) {
+    if (gs_gui_window_begin(gui, "App", gs_gui_rect(100, 100, 200, 200))) {
         gs_gui_layout_row(gui, 1, (int[]){-1}, 0);
         gs_gui_text(gui, "Hello, Gunslinger.");
-        gs_gui_end_window(gui);
+        gs_gui_window_end(gui);
     }
     gs_gui_end(gui);
     gs_gui_render(gui, cb);
