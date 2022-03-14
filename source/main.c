@@ -37,11 +37,11 @@ void app_update()
 	}
 
 	gsi_camera3D(gsi, fbs.x, fbs.y);
-	gsi_rotatefv(gsi, gs_deg2rad(90.f), GS_ZAXIS); gsi_rotatefv(gsi, t, GS_YAXIS);
+	gsi_rotatev(gsi, gs_deg2rad(90.f), GS_ZAXIS); gsi_rotatev(gsi, t, GS_YAXIS);
 	gsi_sphere(gsi, 0.f, 0.f, 0.f, 1.f, 50, 150, 200, 50, GS_GRAPHICS_PRIMITIVE_LINES);
 	gsi_camera2D(gsi, fbs.x, fbs.y);
 	gsi_text(gsi, fbs.x * 0.5f - 70.f, fbs.y * 0.5f, "Hello, Gunslinger.", NULL, false, 255, 255, 255, 255);
-	gsi_render_pass_submit(gsi, cb, gs_color(10, 10, 10, 255));
+	gsi_renderpass_submit(gsi, cb, gs_color(10, 10, 10, 255));
 
     // Render gui
     gs_gui_begin(gui, fbs); 
@@ -54,7 +54,7 @@ void app_update()
     gs_gui_render(gui, cb);
 
 	// Submit command buffer for GPU
-	gs_graphics_submit_command_buffer(cb);
+	gs_graphics_command_buffer_submit(cb);
 }
 
 void app_shutdown()
