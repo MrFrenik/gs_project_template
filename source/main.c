@@ -41,7 +41,7 @@ void app_update()
 	gsi_sphere(gsi, 0.f, 0.f, 0.f, 1.f, 50, 150, 200, 50, GS_GRAPHICS_PRIMITIVE_LINES);
 	gsi_camera2D(gsi, fbs.x, fbs.y);
 	gsi_text(gsi, fbs.x * 0.5f - 70.f, fbs.y * 0.5f, "Hello, Gunslinger.", NULL, false, 255, 255, 255, 255);
-	gsi_renderpass_submit(gsi, cb, gs_color(10, 10, 10, 255));
+	gsi_renderpass_submit(gsi, cb, fbs.x, fbs.y, gs_color(10, 10, 10, 255));
 
     // Render gui
     gs_gui_begin(gui, fbs); 
