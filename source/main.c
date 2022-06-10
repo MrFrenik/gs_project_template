@@ -19,7 +19,7 @@ void app_init()
     app_t* app = gs_user_data(app_t);
 	app->cb = gs_command_buffer_new();
 	app->gsi = gs_immediate_draw_new(gs_platform_main_window());
-    gs_gui_init(&app->gui, gs_platform_main_window());
+    gs_gui_init(&app->gui, gs_platform_main_window()); 
 }
 
 void app_update()
