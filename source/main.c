@@ -41,7 +41,7 @@ void app_update()
 	gsi_sphere(gsi, 0.f, 0.f, 0.f, 1.f, 50, 150, 200, 50, GS_GRAPHICS_PRIMITIVE_LINES);
 	gsi_camera2D(gsi, fbs.x, fbs.y);
 	gsi_text(gsi, fbs.x * 0.5f - 70.f, fbs.y * 0.5f, "Hello, Gunslinger.", NULL, false, 255, 255, 255, 255);
-	gsi_renderpass_submit(gsi, cb, fbs.x, fbs.y, gs_color(10, 10, 10, 255));
+	gsi_renderpass_submit(gsi, cb, gs_v4(0.f, 0.f, fbs.x, fbs.y), gs_color(10, 10, 10, 255));
 
     // Render gui
     gs_gui_begin(gui, NULL); 
@@ -69,10 +69,13 @@ gs_app_desc_t gs_main(int32_t argc, char** argv)
 {
 	return (gs_app_desc_t) {
         .user_data = gs_malloc_init(app_t),
-		.window_width = 800,
-		.window_height = 600,
 		.init = app_init,
 		.update = app_update,
-        .shutdown = app_shutdown
+        .shutdown = app_shutdown,
+        .window = {
+            .width = 800,
+            .height = 600, 
+            .frame_rate = 60
+        }
 	};
 }
