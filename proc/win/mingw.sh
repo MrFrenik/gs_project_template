@@ -1,5 +1,3 @@
-#!bin/sh
-
 rm -rf bin
 mkdir bin
 cd bin
@@ -29,6 +27,7 @@ libs=(
 	-lgdi32 
     -lWinmm
 	-lAdvapi32
+    -pthread
 )
 
 # Build
